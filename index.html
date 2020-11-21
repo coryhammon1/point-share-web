@@ -1,0 +1,765 @@
+<html>
+    <head>
+        <link type="text/css" rel="stylesheet" href="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.css">
+        <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.css">
+    </head> 
+    <body>
+        <div id="app"></div>
+
+<script
+  src="https://code.jquery.com/jquery-3.1.1.min.js"
+  integrity="sha256-hVVnYaiADRTO2PzUGmuLJr8BLUSjGIZsDYGmIJLv2b8="
+  crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.4.1/semantic.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.0.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.0.1/firebase-analytics.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.0.1/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.0.1/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/ui/4.6.1/firebase-ui-auth.js"></script>
+<script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+<script src="https://unpkg.com/rxjs/bundles/rxjs.umd.js"></script>
+<script type="text/babel">
+
+//UI init
+
+const tfOptions = {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric"
+};
+const tf = new Intl.DateTimeFormat("en-US", tfOptions);
+
+var firebaseConfig = {
+    apiKey: "AIzaSyAyLMmtVpHWe3HNfdjFKNozOr2m23oZmeU",
+    authDomain: "pointshare-fa064.firebaseapp.com",
+    databaseURL: "https://pointshare-fa064.firebaseio.com",
+    projectId: "pointshare-fa064",
+    storageBucket: "pointshare-fa064.appspot.com",
+    messagingSenderId: "148023891115",
+    appId: "1:148023891115:web:1d301fffa895fa2a6ed3ee",
+    measurementId: "G-5FLMXDRDL0"
+};
+
+firebase.initializeApp(firebaseConfig);
+firebase.analytics();
+
+const auth = firebase.auth();
+
+const { Observable, combineLatest } = rxjs;
+const { map } = rxjs.operators;
+
+//State
+
+const authState = Observable.create(o => {
+    o.next({ isLoading: true, user: null });
+
+    const unsub = auth.onAuthStateChanged(user => {
+        o.next({ isLoading: false, user });
+    });
+
+    return unsub;
+});
+
+const db = firebase.firestore();
+
+const userPointsState = user => Observable.create(o => {
+    const doc = db.collection("points").doc(user.uid);
+
+    const unsub = doc.onSnapshot(doc => {
+        //what to do if doc is new for a user
+        o.next(doc.data());
+    });
+
+    return unsub;
+});
+
+const usersState = Observable.create(o => {
+    return db.collection("users").onSnapshot(snapshot => {
+        let users = [];
+        snapshot.forEach(doc => {
+            users.push({ id: doc.id, ...doc.data() });
+        });
+        o.next(users);
+    });
+});
+
+const userPeersState = user => usersState.pipe(map(users => {
+    let peers = [];
+    for (let peer of users) {
+        if (peer.id === user.uid) {
+            continue;
+        }
+
+        peers.push(peer);
+    }
+    return peers;
+}));
+
+// const userPeersState = user => Observable.create(o => {
+//     const unsub = db.collection("users")
+//         .where("__name__", "!=", user.uid)
+//         .onSnapshot(snapshot => {
+//             let peers = [];
+//             snapshot.forEach(doc => {
+//                 peers.push({ id: doc.id, displayName: doc.data().displayName });
+//             });
+//             o.next(peers);
+//         });
+
+//     return unsub;
+// });
+
+const transactionsState = Observable.create(o => {
+    const unsub = db.collection("transactions").orderBy("ts", "desc").limit(5).onSnapshot(snapshot => {
+        let txs = [];
+        snapshot.forEach(doc => {
+            txs.push({ id: doc.id, ...doc.data() });
+        });
+        o.next(txs);
+    });
+
+    return unsub;
+});
+
+const productsState = Observable.create(o => {
+    return db.collection("products").onSnapshot(snapshot => {
+        let products = [];
+        snapshot.forEach(doc => {
+            products.push({ id: doc.id, ...doc.data() });
+        });
+        o.next(products);
+    });
+})
+
+const userRedemptionsState = user => Observable.create(o => {
+    return db.collection("redemptions").where("userId", "==", user.uid).orderBy("ts", "desc").onSnapshot(snapshot => {
+        let redemptions = [];
+        snapshot.forEach(doc => {
+            redemptions.push({ id: doc.id, ...doc.data() });
+        });
+        o.next(redemptions);
+    });
+});
+
+//Business Logic
+
+const sendPoints = tx => {
+    return db.runTransaction(t => {
+        let fromDoc = db.collection("points").doc(tx.from);
+        let toDoc = db.collection("points").doc(tx.to);
+        return t.get(fromDoc).then(from => t.get(toDoc).then(to => [from, to])).then(([from, to]) => {
+            if (!from) {
+                throw "From doesn't exist";
+            }
+
+            let fromPoints = from.data().points - tx.amount;
+
+            if (fromPoints < 0) {
+                return Promise.reject("Not enough points.");
+            }
+
+            t.update(fromDoc, { points: fromPoints });
+
+            if (!to.data()) {
+                t.set(toDoc, { rewarded: amount });
+                return [fromPoints, amount];
+            }
+
+            let toPoints = (to.data().rewarded || 0) + 10;
+
+            t.update(toDoc, { rewarded: toPoints });
+
+            return [fromPoints, toPoints];
+        });
+    }).then(points => {
+        return db.collection("transactions").doc().set(tx);
+    });
+};
+
+const redeemProduct = (user, product) => {
+    return db.runTransaction(t => {
+        let pointsDoc = db.collection("points").doc(user.uid);
+        return t.get(pointsDoc).then(doc => {
+            if (!doc) {
+                return Promise.reject("Not enough points");
+            }
+
+            let rewarded = (doc.data().rewarded || 0) - product.cost;
+
+            if (rewarded < 0) {
+                return Promise.reject("Not enough points");
+            }
+
+            t.update(pointsDoc, { rewarded });
+
+            return rewarded;
+        }).then(rewarded => {
+            const redemption = {
+                userId: user.uid, 
+                productId: product.id, 
+                ts: firebase.firestore.FieldValue.serverTimestamp(),
+                state: "pending"
+            };
+
+            return db.collection("redemptions").doc().set(redemption).then(r => redemption);
+        });
+    });
+};
+
+//Components
+
+class LoginForm extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = { email: '', password: '', isSubmitting: false, error: null };
+
+        this.handleEmailChange = this.handleEmailChange.bind(this);
+        this.handlePasswordChange = this.handlePasswordChange.bind(this);
+        this.handleSubmit = this.handleSubmit.bind(this);
+    }
+
+    handleEmailChange(e) {
+        this.setState({ email: e.target.value });
+    }
+
+    handlePasswordChange(e) {
+        this.setState({ password: e.target.value });
+    }
+
+    handleSubmit(e) {
+        this.setState({ disabled: true });
+
+        auth.signInWithEmailAndPassword(this.state.email, this.state.password)
+            .then(result => {
+                this.setState({ disabled: false });
+            })
+            .catch(err => {
+                this.setState({ disabled: false, error: "Invalid email and password" });
+            });
+
+        e.preventDefault();
+    }
+
+    render() {
+        const disabled = this.state.disabled ? "disabled" : null;
+        return (
+            <form className={disabled ? "ui loading form" : "ui form"} onSubmit={this.handleSubmit}>
+                <h2 className="ui dividing header">Point Share</h2>
+                {this.state.error ? <div className="ui error message">{this.state.error}</div> : null}
+                <div className="field">
+                    <input type="email" placeholder="Email" value={this.state.email} onChange={this.handleEmailChange} disabled={disabled} />
+                </div>
+                <div className="field">
+                    <input type="password" placeholder="Password" value={this.state.password} onChange={this.handlePasswordChange} disabled={disabled} />
+                </div>
+                <button className="ui submit primary button" type="submit" disabled={disabled}>Log In</button>
+            </form>
+        );
+    }
+}
+
+class Points extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            points: null
+        };
+    }
+
+    componentDidMount() {
+        this.sub = userPointsState(this.props.user).subscribe(doc => {
+            this.setState({ points: doc.points });
+        });
+    }
+
+    componentWillUnmount() {
+        this.sub.unsubscribe();
+    }
+
+    render() {
+        if (this.state.points === null) {
+            return <p>Loading points...</p>;
+        }
+
+        return (
+            <div className="">
+                You have <b>{this.state.points}</b> points to send.
+            </div>
+        );
+    }
+}
+
+class TransactionForm extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            amount: 0,
+            to: '',
+            description: '',
+            peers: [],
+            disabled: false,
+            error: null
+        };
+
+        this.handleAmountChange = this.handleAmountChange.bind(this);
+        this.handleToChange = this.handleToChange.bind(this);
+        this.handleDescriptionChange = this.handleDescriptionChange.bind(this);
+        this.handleSubmit = this.handleSubmit.bind(this);
+    }
+
+    componentDidMount() {
+        this.sub = userPeersState(this.props.user).subscribe(peers => {
+            this.setState({ peers });
+        });
+    }
+
+    componentWillUnmount() {
+        this.sub.unsubscribe();
+    }
+
+    handleAmountChange(e) {
+        this.setState({ amount: e.target.value });
+    }
+
+    handleToChange(e) {
+        this.setState({ to: e.target.value });
+    }
+
+    handleDescriptionChange(e) {
+        this.setState({ description: e.target.value });
+    }
+
+    handleSubmit(e) {
+        const form = e.target.value;
+
+        this.setState({ disabled: true });
+
+        sendPoints({
+            amount: this.state.amount,
+            from: this.props.user.uid,
+            to: this.state.to,
+            description: this.state.description,
+            ts: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(result => {
+            this.setState({ disabled: false, amount: 0, to: '', description: '', error: null });
+        }).catch(err => {
+            this.setState({ error: err, disabled: false });
+        });
+
+        e.preventDefault();
+    }
+
+    render() {
+        const disabled = this.state.disabled ? "disabled" : null;
+        return (
+            <form className="ui form" onSubmit={this.handleSubmit}>
+                {this.state.error ? <p>Failed to send {this.state.error}</p> : null}
+                <div className="field">
+                    <label>Amount</label>
+                    <div className="ui input">
+                        <input type="number" placeholder="amount" value={this.state.amount} onChange={this.handleAmountChange} disabled={disabled} />
+                    </div>
+                </div>
+                <div className="field">
+                    <label>To</label>
+                    <select className="ui selection dropdown" value={this.state.to} onChange={this.handleToChange} disabled={disabled}>
+                        <option key='' value=''></option>
+                    {this.state.peers.map(peer => <option key={peer.id} value={peer.id}>{peer.displayName}</option>)}
+                    </select>
+                </div>
+                <div className="field">
+                    <label>Message</label>
+                    <div className="ui input">
+                        <input type="text" placeholder="Type a message here" value={this.state.description} onChange={this.handleDescriptionChange} disabled={disabled} />
+                    </div>
+                </div>
+                <button className="ui button" type="submit" disabled={disabled}>Submit</button>
+            </form>
+        );
+    }
+}
+
+class Transactions extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            transactions: null
+        };
+    }
+
+    componentDidMount() {
+        this.sub = combineLatest(transactionsState, usersState).subscribe(([transactions, users]) => {
+            for (let transaction of transactions) {
+                for (let user of users) {
+                    if (transaction.from === user.id) {
+                        transaction.fromUser = user;
+                        break;
+                    }
+                }
+
+                for (let user of users) {
+                    if (transaction.to === user.id) {
+                        transaction.toUser = user;
+                        break;
+                    }
+                }
+            }
+
+            this.setState({ transactions });
+        });
+    }
+
+    componentWillUnmount() {
+        this.sub.unsubscribe();
+    }
+
+    render() {
+        if (!this.state.transactions) {
+            return <p>Loading transactions...</p>;
+        }
+
+        const transactionElements = this.state.transactions.map(t => {
+            const ts = t.ts ? t.ts.toDate() : new Date();
+
+            const tsDisplay = tf.format(ts);
+
+            const fromDisplay = t.fromUser ? t.fromUser.displayName : t.from;
+            const toDisplay = t.toUser ? t.toUser.displayName : t.to;
+            return <div className="item" key={t.id}>
+                <div className="content">
+                    <div className="right floated content">
+                        <div className="description">{tsDisplay}</div>
+                    </div>
+                    <div>{fromDisplay} sent {t.amount} point{t.amount > 1 ? "s" : ""} to {toDisplay} for {t.description}</div>
+                </div>
+            </div>;
+        });
+
+        return (
+            <div className="ui divided relaxed list">
+            {transactionElements}
+            </div>
+        );
+    }
+}
+
+class RewardedPoints extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            rewarded: null
+        };
+    }
+
+    componentDidMount() {
+        this.sub = userPointsState(this.props.user).subscribe(doc => {
+            this.setState({ rewarded: doc.rewarded || 0 });
+        });
+    }
+
+    componentWillUnmount() {
+        this.sub.unsubscribe();
+    }
+
+    render() {
+        if (this.state.rewarded === null) {
+            return <p>Loading rewarded points...</p>
+        }
+
+        return (
+            <p>You have <b>{this.state.rewarded}</b> to spend.</p>
+        );
+    }
+}
+
+class Products extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            products: null
+        };
+    }
+
+    componentDidMount() {
+        this.sub = productsState.subscribe(products => {
+            this.setState({ products });
+        });
+    }
+
+    componentWillUnmount() {
+        this.sub.unsubscribe();
+    }
+
+    render() {
+        if (this.state.products === null) {
+            return <p>Loading products...</p>;
+        }
+
+        return (
+            <div className="ui cards">
+            {this.state.products.map(product => <Product key={product.id} user={this.props.user} product={product} />)}
+            </div>
+        );
+    }
+}
+
+class Product extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            disabled: false,
+            error: null
+        };
+
+        this.handleRedeem = this.handleRedeem.bind(this);
+    }
+
+    handleRedeem(e) {
+        this.setState({ disabled: true });
+
+        redeemProduct(this.props.user, this.props.product)
+            .then(result => {
+                this.setState({ disabled: false });
+            })
+            .catch(err => {
+                this.setState({ error: err, disabled: false });
+            });
+    }
+
+    render() {
+        const product = this.props.product;
+        const disabled = this.state.disabled ? "disabled" : null;
+        return (
+            <div className="ui card">
+                <div className="content">
+                    <div className="header">
+                    {product.displayName}
+                    <span className="right floated">
+                        {product.cost} pts.
+                    </span>
+                    </div>
+                </div>
+                {this.state.error ? <div className="content">Failed to redeem: {this.state.error}</div> : null}
+                <div className="content">
+                    {product.description}
+                </div>
+                <div className="content">
+                    <button className="middle floated ui basic button" onClick={this.handleRedeem} disabled={disabled}>Redeem</button>
+                </div>
+                
+                
+            </div>
+        );
+    }
+}
+
+class Redemptions extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            redemptions: null
+        };
+    }
+
+    componentDidMount() {
+        this.sub = combineLatest(userRedemptionsState(this.props.user), productsState).subscribe(([redemptions, products]) => {
+            redemptions.forEach(redemption => {
+                for (let product of products) {
+                    if (product.id === redemption.productId) {
+                        redemption.product = product;
+                        break;
+                    }
+                }
+
+                this.setState({ redemptions });
+            });
+        });
+    }
+
+    componentWillUnmount() {
+        this.sub.unsubscribe();
+    }
+
+    stepClass(stateNumber, stepNumber) {
+        return stepNumber >= stateNumber ? stepNumber === stateNumber ? "active step" : "completed step" : "disabled step";
+    }
+
+    render() {
+        if (this.state.redemptions === null) {
+            return <p>Loading redemptions...</p>;
+        }
+        
+        const productElements = this.state.redemptions.map(redemption => {
+            const productName = redemption.product ? redemption.product.displayName : redemption.productId;
+            const ts = redemption.ts ? redemption.ts.toDate() : new Date();
+            const tsDisplay = tf.format(ts);
+
+            let stepNumber = 0;
+            if (redemption.state === "pending") {
+                stepNumber = 1;
+            } else if (redemption.state === "processing") {
+                stepNumber = 2;
+            } else if (redemption.state === "shipping") {
+                stepNumber = 3;
+            } else if (redemption.state === "complete") {
+                stepNumber = 4;
+            }
+
+            return (
+                <div className="ui horizontal segments" key={redemption.id}>
+                    <div className="ui segment">
+                        <h4 className="ui header">{productName}</h4>
+                        {tsDisplay}
+                    </div>
+                    <div className="ui segment">
+                        <div className="ui right floated steps">
+                            <div className={this.stepClass(1, stepNumber)}>
+                                <i className="sync icon"></i>
+                                <div className="content">
+                                    <div className="title">Pending</div>
+                                    <div className="description"></div>
+                                </div>
+                            </div>
+                            <div className={this.stepClass(2, stepNumber)}>
+                                <i className="box icon"></i>
+                                <div className="content">
+                                    <div className="title">Processing</div>
+                                    <div className="description"></div>
+                                </div>
+                            </div>
+                            <div className={this.stepClass(3, stepNumber)}>
+                                <i className="truck icon"></i>
+                                <div className="content">
+                                    <div className="title">Shipping</div>
+                                    <div className="description"></div>
+                                </div>
+                            </div>
+                            <div className={stepNumber === 4 ? "completed step" : "disabled step"}>
+                                <i className="check icon"></i>
+                                <div className="content">
+                                    <div className="title">Complete</div>
+                                    <div className="description"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        });
+
+        return (
+            <div className="ui container">
+            {productElements}
+            </div>
+        );
+    }
+}
+
+class App extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            isAuthLoading: true,
+            user: null
+        };
+
+        this.signOut = this.signOut.bind(this);
+    }
+
+    componentDidMount() {
+        this.authSub = authState.subscribe(state => {
+            this.setState({ isAuthLoading: state.isLoading, user: state.user });
+        });
+    }
+
+    componentWillUnmount() {
+        this.authSub.unsubscribe();
+    }
+
+    signOut(e) {
+        auth.signOut().catch(err => {
+            console.error(err);
+        });
+
+        e.preventDefault();
+    }
+
+    render() {
+        if (this.state.isAuthLoading) {
+            return <p></p>;
+        }
+
+        if (!this.state.user) {
+            return (
+                <div className="ui middle aligned center aligned grid">
+                    <div className="column" style={{maxWidth: "450px", paddingTop: "100px"}}>
+                        <LoginForm />
+                    </div>
+                </div>
+            );
+        }
+
+        return (
+            <div className="ui main container">
+                <div className="ui menu">
+                    <div className="header item">
+                        PointShare
+                    </div>
+                    <div className="right menu">
+                        <div className="item">
+                            <span>{this.state.user.email}</span>
+                        </div>
+                        <a className="ui item" onClick={this.signOut}>
+                            Sign Out
+                        </a>
+                    </div>
+                </div>
+                <div className="ui stackable two column grid">
+                    <div className="twelve wide column">
+                        <h4 className="ui header">Activity</h4>
+                        <Transactions user={this.state.user} />
+                    </div>
+                    <div className="four wide column">
+                        <div className="ui card">
+                            <div className="content">
+                                <div className="content"><Points user={this.state.user} /></div>
+                            </div>
+                            <div className="content">
+                                <TransactionForm user={this.state.user} />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div className="ui divider"></div>
+                <div className="">
+                    <RewardedPoints user={this.state.user} />
+                    <Products user={this.state.user} />
+                </div>
+                <div className="ui divider"></div>
+                <div className="">
+                    <h4 className="ui header">Your orders</h4>
+                    <Redemptions user={this.state.user} />
+                </div>
+            </div>
+        );
+    }
+}
+
+const domContainer = document.querySelector("#app");
+ReactDOM.render(<App />, domContainer);
+
+</script>
+    </body>
+</html>
