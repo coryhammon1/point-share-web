@@ -19,6 +19,7 @@
 <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
 <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui-react/2.0.1/semantic-ui-react.min.js"></script>
 <script src="https://unpkg.com/rxjs/bundles/rxjs.umd.js"></script>
 <script type="text/babel">
 
@@ -48,8 +49,8 @@ firebase.analytics();
 
 const auth = firebase.auth();
 
-const { Observable, combineLatest } = rxjs;
-const { map } = rxjs.operators;
+const { Observable, BehaviorSubject, combineLatest } = rxjs;
+const { map, first } = rxjs.operators;
 
 //State
 
@@ -76,6 +77,10 @@ const userPointsState = user => Observable.create(o => {
     return unsub;
 });
 
+const rewardedPointsState = user => {
+    return userPointsState(user).pipe(map(p => p ? p.rewarded : null));
+}
+
 const usersState = Observable.create(o => {
     return db.collection("users").onSnapshot(snapshot => {
         let users = [];
@@ -97,20 +102,6 @@ const userPeersState = user => usersState.pipe(map(users => {
     }
     return peers;
 }));
-
-// const userPeersState = user => Observable.create(o => {
-//     const unsub = db.collection("users")
-//         .where("__name__", "!=", user.uid)
-//         .onSnapshot(snapshot => {
-//             let peers = [];
-//             snapshot.forEach(doc => {
-//                 peers.push({ id: doc.id, displayName: doc.data().displayName });
-//             });
-//             o.next(peers);
-//         });
-
-//     return unsub;
-// });
 
 const transactionsState = Observable.create(o => {
     const unsub = db.collection("transactions").orderBy("ts", "desc").limit(5).onSnapshot(snapshot => {
@@ -208,6 +199,63 @@ const redeemProduct = (user, product) => {
         });
     });
 };
+
+const cartState = user => Observable.create(o => {
+    return db.collection("carts").doc(user.uid).onSnapshot(doc => {
+        if (!doc.exists) {
+            o.next(null);
+            return;
+        }
+
+        const cart = { id: doc.id, ...doc.data() };
+        o.next(cart);
+    });
+});
+
+const getRewardedPoints = user => {
+    return userPointsState(user).pipe(first()).toPromise();
+}
+
+const randomInt = max => {
+    return Math.floor(Math.random() * Math.floor(max));
+};
+
+const addToCart = (user, productId) => {
+    const doc = db.collection("carts").doc(user.uid);
+
+    return doc.get().then(snapshot => {
+        const item = { productId, id: randomInt(100000) };
+        if (!snapshot.exists) {
+            let items = {};
+            items[productId] = { quantity: 1 };
+            return doc.set({ items });
+        } else {
+            let update = {};
+            update["items." + productId + ".quantity"] = firebase.firestore.FieldValue.increment(1);
+            return doc.update(update);
+        }
+    });
+};
+
+const removeFromCart = (productId) => {
+    const uid = auth.currentUser.uid;
+    const doc = db.collection("carts").doc(uid);
+
+    let update = {};
+    update["items." + productId] = firebase.firestore.FieldValue.delete();
+
+    return doc.update(update);
+}
+
+const setItemQuantity = (productId, quantity) => {
+    const uid = auth.currentUser.uid;
+    const doc = db.collection("carts").doc(uid);
+    let update = {};
+    update["items." + productId + ".quantity"] = quantity;
+    return doc.update(update);
+};
+
+const cartModalState = new BehaviorSubject(true);
 
 //Components
 
@@ -485,7 +533,8 @@ class Products extends React.Component {
         super(props);
 
         this.state = {
-            products: null
+            products: null,
+            rewarded: null
         };
     }
 
@@ -493,10 +542,15 @@ class Products extends React.Component {
         this.sub = productsState.subscribe(products => {
             this.setState({ products });
         });
+
+        this.rewardedSub = rewardedPointsState(this.props.user).subscribe(rewarded => {
+            this.setState({ rewarded });
+        });
     }
 
     componentWillUnmount() {
         this.sub.unsubscribe();
+        this.rewardedSub.unsubscribe();
     }
 
     render() {
@@ -506,7 +560,7 @@ class Products extends React.Component {
 
         return (
             <div className="ui cards">
-            {this.state.products.map(product => <Product key={product.id} user={this.props.user} product={product} />)}
+            {this.state.products.map(product => <Product key={product.id} user={this.props.user} product={product} rewarded={this.state.rewarded} />)}
             </div>
         );
     }
@@ -521,24 +575,29 @@ class Product extends React.Component {
             error: null
         };
 
-        this.handleRedeem = this.handleRedeem.bind(this);
+        this.handleAddToCart = this.handleAddToCart.bind(this);
     }
 
-    handleRedeem(e) {
+    handleAddToCart(e) {
         this.setState({ disabled: true });
 
-        redeemProduct(this.props.user, this.props.product)
+        addToCart(this.props.user, this.props.product.id)
             .then(result => {
                 this.setState({ disabled: false });
             })
             .catch(err => {
-                this.setState({ error: err, disabled: false });
+                console.error(err);
+                // this.setState({ error: err, disabled: false });
+                this.setState({ disabled: false });
             });
     }
 
     render() {
         const product = this.props.product;
         const disabled = this.state.disabled ? "disabled" : null;
+
+        const sufficient = ((this.props.rewarded || 0) - product.cost) >= 0;
+
         return (
             <div className="ui card">
                 <div className="content">
@@ -554,7 +613,9 @@ class Product extends React.Component {
                     {product.description}
                 </div>
                 <div className="content">
-                    <button className="middle floated ui basic button" onClick={this.handleRedeem} disabled={disabled}>Redeem</button>
+                    <button className="middle floated ui basic button" onClick={this.handleAddToCart} disabled={disabled || !sufficient}>
+                        Add To Cart
+                    </button>
                 </div>
                 
                 
@@ -666,6 +727,244 @@ class Redemptions extends React.Component {
     }
 }
 
+class CartIcon extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            cart: null
+        };
+
+        this.handleClick = this.handleClick.bind(this);
+    }
+
+    componentDidMount() {
+        this.sub = cartState(this.props.user).subscribe(cart => {
+            if (!cart) {
+                this.setState({ cart: null });
+            } else {
+                this.setState({ cart });
+            }
+        });
+    }
+
+    componentWillUnmount() {
+        this.sub.unsubscribe();
+    }
+
+    handleClick(e) {
+        cartModalState.next(true);
+        e.preventDefault();
+    }
+
+    render() {
+        const items = this.state.cart !== null ? this.state.cart.items : {};
+        
+        let count = 0;
+        for (let item of Object.values(items)) {
+            count += item.quantity;
+        }   
+
+        return (
+            <div onClick={this.handleClick}>
+                <i className="shopping cart icon" />
+                <span>{count}</span>
+            </div>
+        );
+    }
+}
+
+let { Modal, Button, Item, Icon, Grid } = semanticUIReact;
+
+class CartModal extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            show: false,
+            cart: null,
+            rewarded: null
+        };
+    }
+
+    componentDidMount() {
+        this.cartModalStateSub = cartModalState.subscribe(show => {
+            this.setState({ show });
+        });
+
+        this.cartStateSub = combineLatest(cartState(this.props.user), productsState).subscribe(([c, products]) => {
+            if (!c) {
+                this.setState({ cart: null });
+                return;
+            }
+
+            let cart = { ...c };
+
+            cart.items = { ...cart.items };
+
+            let total = 0;
+
+            console.log(cart.items);
+
+            for (let productId in cart.items) {
+                let product = products.find(p => p.id === productId);
+
+                let cost = product ? product.cost : 0;
+                total += cost;
+
+                cart.items[productId] = { ...cart.items[productId], productId, displayName: product.displayName, description: product.description, cost };
+            }
+
+            cart.total = total;
+
+            this.setState({ cart });
+        });
+
+        this.pointsSub = userPointsState(this.props.user).subscribe(doc => {
+            this.setState({ rewarded: doc.rewarded });
+        });
+    }
+
+    componentWillUnmount() {
+        this.cartModalStateSub.unsubscribe();
+        this.cartStateSub.unsubscribe();
+        this.pointsSub.unsubscribe();
+    }
+
+    render() {
+        let items = this.state.cart ? this.state.cart.items : {};
+        items = Object.values(items).sort((a, b) => a.productId.localeCompare(b.productId));
+
+        const total = this.state.cart ? this.state.cart.total : 0;
+
+        const disabled = (this.state.rewarded - total) < 0;
+
+        return (
+            <Modal 
+                closeIcon
+                size="large"
+                open={this.state.show}
+                onClose={() => cartModalState.next(false)}>
+                <Modal.Header>Cart</Modal.Header>
+                <Modal.Content>
+                    <Item.Group divided>
+                    {items.map(item => <CartItem key={item.productId} item={item} />)}
+                    <Item key="total">
+                        <Item.Content>
+                            {total} pts. {this.state.rewarded ? "(You will have " + (this.state.rewarded - total) + " remaining)" : ""}
+                        </Item.Content>
+                    </Item>
+                    </Item.Group>
+                </Modal.Content>
+                <Modal.Actions>
+                    <Button onClick={() => cartModalState.next(false)}>Keep Shopping</Button>
+                    <Button primary disabled={disabled}>Check Out</Button>
+                </Modal.Actions>
+            </Modal>
+        );
+    }
+}
+
+class CartItem extends React.Component {
+    constructor(props) {
+        super(props);
+    }
+
+    render() {
+        const item = this.props.item;
+        return (
+            <Item>
+                <Item.Content>
+                    <Item.Header>
+                        {item.displayName} {item.quantity > 1 ? "(x" + item.quantity + ")" : null}
+                    </Item.Header>
+                    <Item.Description>
+                        <Grid>
+                            <Grid.Column width="14">
+                                <p>{item.description}</p>
+                            </Grid.Column>
+                            <Grid.Column width="2">
+                                <CartItemEditor item={item} />
+                            </Grid.Column>
+                        </Grid>
+                    </Item.Description>
+                    <Item.Extra>
+                    </Item.Extra>
+                </Item.Content>
+            </Item>
+        );
+    }
+}
+
+class CartItemEditor extends React.Component {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+            disabled: false
+        };
+
+        this.handleIncrement = this.handleIncrement.bind(this);
+        this.handleDecrement = this.handleDecrement.bind(this);
+        this.handleRemove = this.handleRemove.bind(this);
+    }
+
+    handleIncrement(e) {
+        this.setState({ disabled: true });
+
+        const item = this.props.item;
+        const quantity = item.quantity + 1;
+        
+        setItemQuantity(item.productId, quantity)
+            .catch(err => {
+                console.error(err);
+            })
+            .finally(() => {
+                this.setState({ disabled: false });
+            });
+
+        e.preventDefault();
+    }
+
+    handleDecrement(e) {
+        this.setState({ disabled: true });
+
+        const item = this.props.item;
+        const quantity = Math.max(item.quantity - 1, 0);
+        setItemQuantity(item.productId, quantity)
+            .catch(err => {
+                console.error(err);
+            })
+            .finally(() => {
+                this.setState({ disabled: false });
+            });
+
+        e.preventDefault();
+    }
+
+    handleRemove(e) {
+        const item = this.props.item;
+        removeFromCart(item.productId).catch(err => {
+            console.error(err);
+        });
+        e.preventDefault();
+    }
+
+    render() {
+        const item = this.props.item;
+        const disabled = this.state.disabled ? "disabled" : null;
+        return (
+            <div>
+                <Button onClick={this.handleIncrement} content="+" disabled={disabled} />
+                <span>{item.quantity}</span>
+                <Button onClick={this.handleDecrement} content="-" disabled={disabled} />
+                <div>{item.cost} pts.</div>
+                <Button onClick={this.handleRemove} icon="trash" disabled={disabled} />
+            </div>
+        );
+    }
+}
+
 class App extends React.Component {
     constructor(props) {
         super(props);
@@ -712,45 +1011,51 @@ class App extends React.Component {
         }
 
         return (
-            <div className="ui main container">
-                <div className="ui menu">
-                    <div className="header item">
-                        PointShare
-                    </div>
-                    <div className="right menu">
-                        <div className="item">
-                            <span>{this.state.user.email}</span>
+            <div className="app">
+                <CartModal user={this.state.user} />
+                <div className="ui main container">
+                    <div className="ui menu">
+                        <div className="header item">
+                            PointShare
                         </div>
-                        <a className="ui item" onClick={this.signOut}>
-                            Sign Out
-                        </a>
-                    </div>
-                </div>
-                <div className="ui stackable two column grid">
-                    <div className="twelve wide column">
-                        <h4 className="ui header">Activity</h4>
-                        <Transactions user={this.state.user} />
-                    </div>
-                    <div className="four wide column">
-                        <div className="ui card">
-                            <div className="content">
-                                <div className="content"><Points user={this.state.user} /></div>
+                        <div className="right menu">
+                            <div className="item">
+                                <span>{this.state.user.email}</span>
                             </div>
-                            <div className="content">
-                                <TransactionForm user={this.state.user} />
+                            <div className="item">
+                                <CartIcon user={this.state.user} />
                             </div>
+                            <a className="ui item" onClick={this.signOut}>
+                                Sign Out
+                            </a>
                         </div>
                     </div>
-                </div>
-                <div className="ui divider"></div>
-                <div className="">
-                    <RewardedPoints user={this.state.user} />
-                    <Products user={this.state.user} />
-                </div>
-                <div className="ui divider"></div>
-                <div className="">
-                    <h4 className="ui header">Your orders</h4>
-                    <Redemptions user={this.state.user} />
+                    <div className="ui stackable two column grid">
+                        <div className="twelve wide column">
+                            <h4 className="ui header">Activity</h4>
+                            <Transactions user={this.state.user} />
+                        </div>
+                        <div className="four wide column">
+                            <div className="ui card">
+                                <div className="content">
+                                    <div className="content"><Points user={this.state.user} /></div>
+                                </div>
+                                <div className="content">
+                                    <TransactionForm user={this.state.user} />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="ui divider"></div>
+                    <div className="">
+                        <RewardedPoints user={this.state.user} />
+                        <Products user={this.state.user} />
+                    </div>
+                    <div className="ui divider"></div>
+                    <div className="">
+                        <h4 className="ui header">Your orders</h4>
+                        <Redemptions user={this.state.user} />
+                    </div>
                 </div>
             </div>
         );
