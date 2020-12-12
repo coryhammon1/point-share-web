@@ -1,0 +1,30 @@
+{
+  "name": "point-share-web",
+  "version": "1.0.0",
+  "description": "Client application for point share.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coryhammon1/point-share-web.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/coryhammon1/point-share-web/issues"
+  },
+  "homepage": "https://github.com/coryhammon1/point-share-web#readme",
+  "devDependencies": {
+    "@babel/core": "^7.12.10",
+    "@babel/preset-env": "^7.12.10",
+    "@babel/preset-react": "^7.12.10",
+    "@rollup/plugin-babel": "^5.2.2",
+    "@rollup/plugin-commonjs": "^17.0.0",
+    "@rollup/plugin-node-resolve": "^11.0.0",
+    "@rollup/plugin-replace": "^2.3.4",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1"
+  }
+}
