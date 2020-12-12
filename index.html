@@ -137,6 +137,8 @@ const userRedemptionsState = user => Observable.create(o => {
 
 //Business Logic
 
+const FieldValue = firebase.firestore.FieldValue;
+
 const sendPoints = tx => {
     return db.runTransaction(t => {
         let fromDoc = db.collection("points").doc(tx.from);
@@ -212,13 +214,23 @@ const cartState = user => Observable.create(o => {
     });
 });
 
-const getRewardedPoints = user => {
-    return userPointsState(user).pipe(first()).toPromise();
+const getRewardedPoints = () => {
+    const uid = auth.currentUser.uid;
+    return db.collection("points").doc(uid).get(doc => {
+        let data = doc.data();
+        if (!data) return null;
+        return data.rewarded;
+    });
 }
 
 const randomInt = max => {
     return Math.floor(Math.random() * Math.floor(max));
 };
+
+const clearCart = () => {
+    const uid = auth.currentUser.uid;
+    return db.collection("carts").doc(uid).delete();
+}
 
 const addToCart = (user, productId) => {
     const doc = db.collection("carts").doc(user.uid);
@@ -257,7 +269,37 @@ const setItemQuantity = (productId, quantity) => {
 
 const cartModalState = new BehaviorSubject(false);
 
+const checkout = async (cart, rewarded) => {
+    const uid = auth.currentUser.uid;
+
+    let items = {};
+
+    for (let productId in cart.items) {
+        let cartItem = cart.items[productId];
+        items[productId] = { quantity: cartItem.quantity, cost: cartItem.cost };
+    }
+
+    let order = {
+        userId: uid,
+        items,
+        timestamp: FieldValue.serverTimestamp()
+    };
+
+    let pointsDoc = db.collection("points").doc(uid);
+    let cartDoc = db.collection("carts").doc(uid);
+    let orderDoc = db.collection("orders").doc();
+
+    let batch = db.batch();
+    batch.delete(cartDoc);
+    batch.set(pointsDoc, { rewarded });
+    batch.set(orderDoc, order);
+
+    return batch.commit();
+}
+
 //Components
+
+let { Modal, Button, Item, Icon, Grid, Statistic, Message, Dimmer, Loader } = semanticUIReact;
 
 class LoginForm extends React.Component {
     constructor(props) {
@@ -617,8 +659,6 @@ class Product extends React.Component {
                         Add To Cart
                     </button>
                 </div>
-                
-                
             </div>
         );
     }
@@ -774,8 +814,6 @@ class CartIcon extends React.Component {
     }
 }
 
-let { Modal, Button, Item, Icon, Grid } = semanticUIReact;
-
 class CartModal extends React.Component {
     constructor(props) {
         super(props);
@@ -783,8 +821,13 @@ class CartModal extends React.Component {
         this.state = {
             show: false,
             cart: null,
-            rewarded: null
+            rewarded: null,
+            error: null,
+            isLoading: false,
+            success: false
         };
+
+        this.handleCheckout = this.handleCheckout.bind(this);
     }
 
     componentDidMount() {
@@ -807,12 +850,15 @@ class CartModal extends React.Component {
             console.log(cart.items);
 
             for (let productId in cart.items) {
+                let item = cart.items[productId];
                 let product = products.find(p => p.id === productId);
 
                 let cost = product ? product.cost : 0;
-                total += cost;
 
-                cart.items[productId] = { ...cart.items[productId], productId, displayName: product.displayName, description: product.description, cost };
+                let quantity = item.quantity ? item.quantity : 0;
+                total += cost * quantity;
+
+                cart.items[productId] = { ...item, quantity, productId, displayName: product.displayName, description: product.description, cost };
             }
 
             cart.total = total;
@@ -831,13 +877,45 @@ class CartModal extends React.Component {
         this.pointsSub.unsubscribe();
     }
 
+    handleCheckout(e) {
+        this.setState({ isLoading: true });
+
+        const newRewarded = this.state.rewarded - this.state.cart.total;
+
+        checkout(this.state.cart, newRewarded)
+            .then(result => {
+                this.setState({ success: true });
+            })
+            .catch(err => {
+                console.error(err);
+            })
+            .finally(() => {
+                this.setState({ isLoading: false });
+            });
+    
+        e.preventDefault();
+    }
+
     render() {
+        if (this.state.success) {
+            return (
+                <Modal closeIcon size="large" open={this.state.show} onClose={() => cartModalState.next(false)}>
+                    <Modal.Header>Cart</Modal.Header>
+                    <Modal.Content>
+                        <Message positive header="Order has been placed." />
+                    </Modal.Content>
+                </Modal>
+            );
+        }
+
         let items = this.state.cart ? this.state.cart.items : {};
         items = Object.values(items).sort((a, b) => a.productId.localeCompare(b.productId));
 
         const total = this.state.cart ? this.state.cart.total : 0;
 
         const disabled = (this.state.rewarded - total) < 0;
+
+        const notEnoughPoints = total > this.state.rewarded;
 
         return (
             <Modal 
@@ -847,18 +925,22 @@ class CartModal extends React.Component {
                 onClose={() => cartModalState.next(false)}>
                 <Modal.Header>Cart</Modal.Header>
                 <Modal.Content>
+                    <Dimmer active={this.state.isLoading}>
+                        <Loader />
+                    </Dimmer>
                     <Item.Group divided>
                     {items.map(item => <CartItem key={item.productId} item={item} />)}
                     <Item key="total">
                         <Item.Content>
                             {total} pts. {this.state.rewarded ? "(You will have " + (this.state.rewarded - total) + " remaining)" : ""}
+                            {notEnoughPoints ? <Message error header="Not enough points" /> : null}
                         </Item.Content>
                     </Item>
                     </Item.Group>
                 </Modal.Content>
                 <Modal.Actions>
                     <Button onClick={() => cartModalState.next(false)}>Keep Shopping</Button>
-                    <Button primary disabled={disabled}>Check Out</Button>
+                    <Button onClick={this.handleCheckout} primary disabled={disabled}>Check Out</Button>
                 </Modal.Actions>
             </Modal>
         );
@@ -866,37 +948,6 @@ class CartModal extends React.Component {
 }
 
 class CartItem extends React.Component {
-    constructor(props) {
-        super(props);
-    }
-
-    render() {
-        const item = this.props.item;
-        return (
-            <Item>
-                <Item.Content>
-                    <Item.Header>
-                        {item.displayName} {item.quantity > 1 ? "(x" + item.quantity + ")" : null}
-                    </Item.Header>
-                    <Item.Description>
-                        <Grid>
-                            <Grid.Column width="14">
-                                <p>{item.description}</p>
-                            </Grid.Column>
-                            <Grid.Column width="2">
-                                <CartItemEditor item={item} />
-                            </Grid.Column>
-                        </Grid>
-                    </Item.Description>
-                    <Item.Extra>
-                    </Item.Extra>
-                </Item.Content>
-            </Item>
-        );
-    }
-}
-
-class CartItemEditor extends React.Component {
     constructor(props) {
         super(props);
 
@@ -951,16 +1002,35 @@ class CartItemEditor extends React.Component {
     }
 
     render() {
-        const item = this.props.item;
         const disabled = this.state.disabled ? "disabled" : null;
+        const item = this.props.item;
+        const quantity = item.quantity ? item.quantity : 0;
         return (
-            <div>
-                <Button onClick={this.handleIncrement} content="+" disabled={disabled} />
-                <span>{item.quantity}</span>
-                <Button onClick={this.handleDecrement} content="-" disabled={disabled} />
-                <div>{item.cost} pts.</div>
-                <Button onClick={this.handleRemove} icon="trash" disabled={disabled} />
-            </div>
+            <Item>
+                <Item.Content>
+                    <Item.Header>
+                        {item.displayName} {quantity > 1 ? "(x" + quantity + ")" : null}
+                    </Item.Header>
+                    <Item.Description>
+                        <Grid>
+                            <Grid.Column width="14">
+                                <p>{item.description}</p>
+                            </Grid.Column>
+                            <Grid.Column width="2">
+                                <div style={{}}>{item.cost * quantity} pts. ({item.cost} pts. each)</div>
+                                <div>
+                                    <Button onClick={this.handleDecrement} content="-" disabled={disabled} attached="left" />
+                                    <span style={{"padding": "5px 10px"}}>{item.quantity}</span>
+                                    <Button onClick={this.handleIncrement} content="+" disabled={disabled} attached="right" />
+                                </div>
+                                <Button onClick={this.handleRemove} icon="trash" disabled={disabled} />
+                            </Grid.Column>
+                        </Grid>
+                    </Item.Description>
+                    <Item.Extra>
+                    </Item.Extra>
+                </Item.Content>
+            </Item>
         );
     }
 }
