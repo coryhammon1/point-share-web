@@ -13,10 +13,17 @@ export default {
     },
     plugins: [
         replace({
-            "process.env.NODE_ENV": JSON.stringify(NODE_ENV)
+            "process.env.NODE_ENV": JSON.stringify(NODE_ENV),
+            //"firebase.initializeApp": "firebase.default.initializeApp"
         }),
-        resolve(),
-        babel({ babelHelpers: "bundled", exclude: "node_modules/**" }),
-        commonjs()
+        resolve({
+            browser: true
+        }),
+        babel({ 
+            babelHelpers: "bundled"
+         }),
+        commonjs({
+            include: "node_modules/**"
+        })
     ]
 }
