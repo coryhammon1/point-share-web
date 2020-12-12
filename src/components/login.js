@@ -1,8 +1,5 @@
 import React from "react";
 
-import Button from "@material-ui/core/Button";
-import Container from "@material-ui/core/Container";
-
 export class Login extends React.Component {
     render() {
         return (
@@ -15,9 +12,14 @@ export class Login extends React.Component {
 }
 
 export class LoginForm extends React.Component {
+
     render() {
+
         return (
-            <Button variant="contained" color="primary">Login</Button>
+            <form noValidate autoComplete="off">
+                <TextField id="email" label="Email" required />
+                <TextField id="password" label="Password" type="password" required />
+            </form>
         );
     }
 }
