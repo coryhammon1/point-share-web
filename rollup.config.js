@@ -9,19 +9,18 @@ const NODE_ENV = process.env.NODE_ENV || "development";
 export default {
     input: 'src/app.js',
     output: {
-        file: 'dist/app.js'
+        file: 'dist/app.js',
+        format: 'iife'
     },
     plugins: [
         replace({
             "process.env.NODE_ENV": JSON.stringify(NODE_ENV),
             //"firebase.initializeApp": "firebase.default.initializeApp"
         }),
-        resolve({
-            browser: true
-        }),
         babel({ 
             babelHelpers: "bundled"
-         }),
+        }),
+        resolve(),
         commonjs({
             include: "node_modules/**"
         })
