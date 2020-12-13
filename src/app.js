@@ -1,6 +1,3 @@
-import "regenerator-runtime/runtime";
-import "core-js/stable";
-
 import React from "react";
 import ReactDOM from "react-dom";
 
@@ -61,6 +58,8 @@ class App extends React.Component {
             ui = <EmployeeUI />;
         }
 
+        //ADD cart icon
+
         return (
             <div className="app ui main container">
                 <div className="ui menu">
@@ -72,7 +71,7 @@ class App extends React.Component {
                             <span>{auth.user.email}</span>
                         </div>
                         <div className="item">
-                            {/* <CartIcon user={auth.user} /> */}
+                            
                         </div>
                         <a className="ui item" onClick={this.signOut}>
                             Sign Out
@@ -85,5 +84,8 @@ class App extends React.Component {
     }
 }
 
-const domContainer = document.querySelector("#app");
-ReactDOM.render(<App />, domContainer);
+(function() {
+    const domContainer = document.querySelector("#app");
+    ReactDOM.render(<App />, domContainer);
+})();
+
