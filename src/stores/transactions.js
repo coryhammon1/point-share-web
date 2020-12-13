@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 import { db } from "../firebase";
 
 import { currentProfileState } from "./profile";
@@ -18,3 +20,18 @@ export const transactionsState = currentProfileState.pipe(switchMap(profile => {
         });
     });
 }));
+
+export function useTransactions() {
+    const [transactions, setTransactions] = useState(null);
+
+    useEffect(() => {
+        let sub = transactionsState.subscribe(txs => {
+            setTransactions(txs);
+        });
+        return () => {
+            sub.unsubscribe();
+        };
+    }, []);
+
+    return transactions;
+}

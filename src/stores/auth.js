@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 import app from "../firebase.js";
 
 import { BehaviorSubject } from "rxjs";
@@ -23,4 +25,19 @@ export function switchAuthState(f) {
 
 export function authenticate(email, password) {
     return auth.signInWithEmailAndPassword(email, password);
+}
+
+export function useCurrentUser() {
+    const [user, setCurrentUser] = useState(null);
+
+    useEffect(() => {
+        let sub = currentUser.subscribe(user => {
+            setCurrentUser(user);
+        });
+        return () => {
+            sub.unsubscribe();
+        };
+    }, []);
+
+    return user;
 }

@@ -1,6 +1,8 @@
-import { db } from "../firebase";
+import { useState, useEffect } from "react";
 
 import { of } from "rxjs";
+
+import { db } from "../firebase";
 
 import { switchAuthState } from "./auth";
 
@@ -23,3 +25,20 @@ export const currentPointsState = switchAuthState(auth => {
 
     return pointsState(auth.user.uid);
 });
+
+//hooks
+
+export function useCurrentPoints() {
+    const [points, setPoints] = useState(null);
+
+    useEffect(() => {
+        let sub = currentPointsState.subscribe(points => {
+            setPoints(points);
+        });
+        return () => {
+            sub.unsubscribe();
+        };
+    }, []);
+
+    return points;
+}

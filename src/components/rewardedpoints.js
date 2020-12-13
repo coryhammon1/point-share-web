@@ -1,39 +1,15 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
-import { map } from "rxjs/operators";
+import { useCurrentPoints } from "../stores/points";
 
-import { currentPointsState } from "../stores/points";
+let i = 0;
 
-const componentState = currentPointsState.pipe(map(points => {
-    return { rewarded: points?.rewarded };
-}));
+export default function RewardedPoints(props) {
+    const points = useCurrentPoints();
 
-export default class RewardedPoints extends React.Component {
-    constructor(props) {
-        super(props);
-
-        this.state = {
-            rewarded: null
-        };
+    if (!points) {
+        return <p>Loading...</p>;
     }
 
-    componentDidMount() {
-        this.sub = componentState.subscribe(state => {
-            this.setState(state);
-        });
-    }
-
-    componentWillUnmount() {
-        this.sub.unsubscribe();
-    }
-
-    render() {
-        if (this.state.rewarded === null) {
-            return <p>Loading rewarded points...</p>
-        }
-
-        return (
-            <p>You have <b>{this.state.rewarded}</b> to spend.</p>
-        );
-    }
+    return <p>You have <b>{points?.rewarded ?? 0}</b> to spend.</p>;
 }

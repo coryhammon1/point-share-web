@@ -1,3 +1,5 @@
+import { useState, useEffect } from "react";
+
 import { db } from "../firebase";
 
 import { Observable, empty, of } from "rxjs";
@@ -47,3 +49,18 @@ export const profilesState = authState.pipe(switchMap(auth => {
 
     return profiles(auth.user.uid);
 }));
+
+export function useProfiles() {
+    const [profiles, setProfiles] = useState(null);
+
+    useEffect(() => {
+        let sub = profilesState.subscribe(profiles => {
+            setProfiles(profiles);
+        });
+        return () => {
+            sub.unsubscribe();
+        };
+    }, []);
+
+    return profiles;
+}

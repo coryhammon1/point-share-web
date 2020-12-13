@@ -1,11 +1,11 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 import { combineLatest } from "rxjs";
 import { map } from "rxjs/operators";
 
-import { productsState } from "../stores/products";
-import { currentPointsState } from "../stores/points";
-import { currentUser } from "../stores/auth";
+import { productsState, useProducts } from "../stores/products";
+import { currentPointsState, useCurrentPoints } from "../stores/points";
+import { currentUser, useCurrentUser } from "../stores/auth";
 
 import { addToCart } from "../controllers/cart";
 
@@ -14,38 +14,20 @@ const componentState = combineLatest(productsState, currentPointsState, currentU
     return { products, rewarded, user };
 }));
 
-export default class Products extends React.Component {
-    constructor(props) {
-        super(props);
+export default function Products(props) {
+    const products = useProducts();
+    const currentPoints = useCurrentPoints();
+    const currentUser = useCurrentUser();
 
-        this.state = {
-            products: null,
-            rewarded: null,
-            user: null
-        };
+    if (products === null) {
+        return <p>Loading...</p>;
     }
 
-    componentDidMount() {
-        this.sub = componentState.subscribe(state => {
-            this.setState(state);
-        });
-    }
-
-    componentWillUnmount() {
-        this.sub.unsubscribe();
-    }
-
-    render() {
-        if (this.state.products === null) {
-            return <p>Loading products...</p>;
-        }
-
-        return (
-            <div className="ui cards">
-            {this.state.products.map(product => <Product key={product.id} user={this.state.user} product={product} rewarded={this.state.rewarded} />)}
-            </div>
-        );
-    }
+    return (
+        <div className="ui cards">
+        {products.map(product => <Product key={product.id} user={currentUser} product={product} rewarded={currentPoints?.rewarded} />)}
+        </div>
+    );
 }
 
 class Product extends React.Component {

@@ -1,45 +1,13 @@
 import React from "react";
 
-import { map } from "rxjs/operators";
+import { useCurrentPoints } from "../stores/points";
 
-import { currentPointsState } from "../stores/points"; 
+export default function Points(props) {
+    const points = useCurrentPoints();
 
-const componentState = currentPointsState.pipe(map(points => {
-    return { points };
-}));
-
-export default class Points extends React.Component {
-    constructor(props) {
-        super(props);
-
-        this.state = {
-            points: null
-        };
+    if (points === null) {
+        return <p>Loading...</p>;
     }
 
-    componentDidMount() {
-        this.sub = componentState.subscribe(state => {
-            this.setState(state);
-        });
-    }
-
-    componentWillUnmount() {
-        this.sub.unsubscribe();
-    }
-
-    render() {
-        const points = this.state.points;
-
-        if (points === null) {
-            return <p>Loading points...</p>;
-        }
-
-        const sendPoints = points.points || 0;
-
-        return (
-            <div className="">
-                You have <b>{sendPoints}</b> points to send.
-            </div>
-        );
-    }
+    return <div>You have <b>{points?.points ?? 0}</b> points to send.</div>
 }
