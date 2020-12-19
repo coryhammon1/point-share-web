@@ -5,8 +5,8 @@ import Points from "./points";
 import TransactionForm from "./transactionform";
 import RewardedPoints from "./rewardedpoints";
 import Products from "./products";
+import { CartIcon, CartModal } from "./cart";
 
-import { useCurrentUser } from "../stores/auth";
 import { signOut } from "../controllers/auth";
 
 export default function EmployeeUI(props) {
@@ -19,6 +19,7 @@ export default function EmployeeUI(props) {
 
     return (
         <div className="app ui main container">
+            <CartModal />
             <div className="ui menu">
                 <div className="header item">
                     PointShare
@@ -28,7 +29,7 @@ export default function EmployeeUI(props) {
                         <span>{auth.user.email}</span>
                     </div>
                     <div className="item">
-                        Cart
+                        <CartIcon />
                     </div>
                     <a className="ui item" onClick={e => handleSignOut(e)}>
                         Sign Out
@@ -59,17 +60,3 @@ export default function EmployeeUI(props) {
         </div>
     );
 }
-
-// export default class EmployeeUI extends React.Component {
-//     constructor(props) {
-//         super(props);
-
-//         this.state = {
-//             user: null
-//         };
-//     }
-
-//     render() {
-        
-//     }
-// }
