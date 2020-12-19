@@ -6,40 +6,70 @@ import TransactionForm from "./transactionform";
 import RewardedPoints from "./rewardedpoints";
 import Products from "./products";
 
-export default class EmployeeUI extends React.Component {
-    constructor(props) {
-        super(props);
+import { useCurrentUser } from "../stores/auth";
+import { signOut } from "../controllers/auth";
 
-        this.state = {
-            user: null
-        };
-    }
+export default function EmployeeUI(props) {
+    const auth = props.auth;
 
-    render() {
-        return (
-            <div>
+    const handleSignOut = e => {
+        e.preventDefault();
+        signOut();
+    };
+
+    return (
+        <div className="app ui main container">
+            <div className="ui menu">
+                <div className="header item">
+                    PointShare
+                </div>
+                <div className="right menu">
+                    <div className="item">
+                        <span>{auth.user.email}</span>
+                    </div>
+                    <div className="item">
+                        Cart
+                    </div>
+                    <a className="ui item" onClick={e => handleSignOut(e)}>
+                        Sign Out
+                    </a>
+                </div>
+            </div>
             <div className="ui stackable two column grid">
                 <div className="twelve wide column">
                     <h4 className="ui header">Activity</h4>
-                    <Transactions user={this.state.user} />
+                    <Transactions user={auth.user} />
                 </div>
                 <div className="four wide column">
                     <div className="ui card">
                         <div className="content">
-                            <div className="content"><Points user={this.state.user} /></div>
+                            <div className="content"><Points user={auth.user} /></div>
                         </div>
                         <div className="content">
-                            <TransactionForm user={this.state.user} />
+                            <TransactionForm user={auth.user} />
                         </div>
                     </div>
                 </div>
             </div>
             <div className="ui divider"></div>
             <div className="">
-                <RewardedPoints user={this.state.user} />
-                <Products user={this.state.user} />
+                <RewardedPoints user={auth.user} />
+                <Products user={auth.user} />
             </div>
-            </div>
-        );
-    }
+        </div>
+    );
 }
+
+// export default class EmployeeUI extends React.Component {
+//     constructor(props) {
+//         super(props);
+
+//         this.state = {
+//             user: null
+//         };
+//     }
+
+//     render() {
+        
+//     }
+// }

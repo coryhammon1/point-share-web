@@ -50,37 +50,11 @@ class App extends React.Component {
             return <div>Loading...</div>;
         }
 
-        let ui = null;
-
         if (profile.type === "FULFILLER") {
-            ui = <div>Fulfiller</div>;
+            return <div>Fulfiller</div>;
         } else {
-            ui = <EmployeeUI />;
+            return <EmployeeUI auth={auth} />;
         }
-
-        //ADD cart icon
-
-        return (
-            <div className="app ui main container">
-                <div className="ui menu">
-                    <div className="header item">
-                        PointShare
-                    </div>
-                    <div className="right menu">
-                        <div className="item">
-                            <span>{auth.user.email}</span>
-                        </div>
-                        <div className="item">
-                            
-                        </div>
-                        <a className="ui item" onClick={this.signOut}>
-                            Sign Out
-                        </a>
-                    </div>
-                </div>
-                {ui}
-            </div>
-        );
     }
 }
 

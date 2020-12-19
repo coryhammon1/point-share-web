@@ -22,7 +22,7 @@ export function LoginForm(props) {
         e.preventDefault();
 
         setIsSubmitting(true);
-        authenticate(this.state.email, this.state.password)
+        authenticate(email, password)
             .catch(err => {
                 setError("Invalid email or password");
             })
@@ -40,7 +40,7 @@ export function LoginForm(props) {
                 <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} disabled={disabled} />
             </div>
             <div className="field">
-                <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.password)} disabled={disabled} />
+                <input type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} disabled={disabled} />
             </div>
             <button className="ui submit primary button" type="submit" disabled={disabled}>Log In</button>
         </form>
