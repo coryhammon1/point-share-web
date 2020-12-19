@@ -21,6 +21,7 @@ function profileState(uid) {
 }
 
 function profiles(uid) {
+    //TODO: will need to restrict while profiles this user can see
     return Observable.create(o => {
         return db.collection("users").onSnapshot(snapshot => {
             let profiles = [];
