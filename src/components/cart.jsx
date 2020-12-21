@@ -1,5 +1,5 @@
 
-import React, { useEffect } from "react";
+import React, { useState } from "react";
 
 import { useCurrentCart } from "../stores/cart";
 
@@ -30,8 +30,9 @@ export function CartIcon(props) {
 }
 
 export function CartModal(props) {
+    const [show, setShow] = useState(false);
     return (
-        <Modal.Dialog>
+        <Modal show={show} onHide={e => setShow(false)}>
             <Modal.Header closeButton>
                 <Modal.Title>Modal title</Modal.Title>
             </Modal.Header>
@@ -44,6 +45,6 @@ export function CartModal(props) {
                 <Button variant="secondary">Close</Button>
                 <Button variant="primary">Save changes</Button>
             </Modal.Footer>
-        </Modal.Dialog>
+        </Modal>
     );
 }

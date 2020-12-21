@@ -1,14 +1,16 @@
 import React, { useState } from "react";
 
+import { Container, Row, Col, Form, Button } from "react-bootstrap";
+
 import { authenticate } from "../stores/auth";
 
 export function Login(props) {
     return (
-        <div className="ui middle aligned center aligned grid">
-            <div className="column" style={{maxWidth: "450px", paddingTop: "100px"}}>
+        <Container>
+            <Row className="justify-content-md-center">
                 <LoginForm />
-            </div>
-        </div>
+            </Row>
+        </Container>
     );
 }
 
@@ -32,6 +34,22 @@ export function LoginForm(props) {
     };
 
     const disabled = isSubmitting ? "disabled" : null;
+
+    return (
+        <Form onSubmit={e => handleSubmit(e)}>
+            <h1>Point Share</h1>
+            <Form.Group controlId="email">
+                <Form.Label>Email</Form.Label>
+                <Form.Control type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} />
+            </Form.Group>
+            <Form.Group controlId="password">
+                <Form.Label>Password</Form.Label>
+                <Form.Control type="password" placeholder="Password" value={password} onChange={e => setPassword(e.target.value)} />
+            </Form.Group>
+            <Button variant="primary" type="submit">Submit</Button>
+        </Form>
+    );
+
     return (
         <form className={disabled ? "ui loading form" : "ui form"} onSubmit={e => handleSubmit(e)}>
             <h2 className="ui dividing header">Point Share</h2>

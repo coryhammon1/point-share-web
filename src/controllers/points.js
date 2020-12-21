@@ -1,6 +1,10 @@
 import { db, FieldValue } from "../firebase";
 
 export function sendPoints(amount, from, to, description) {
+    if (amount < 1) {
+        return Promise.reject("Amount must be more than 0");
+    }
+
     const tx = {
         amount,
         from,

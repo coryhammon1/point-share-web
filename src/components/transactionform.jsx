@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 
+import { Form, Alert, Button } from "react-bootstrap";
+
 import { useCurrentUser } from "../stores/auth";
 import { useProfiles } from "../stores/profile";
 
@@ -45,6 +47,33 @@ export default function TransactionForm(props) {
                 setError(err.toString());
             });
     };
+
+    const isValid = amount > 0;
+
+    return (
+        <Form onSubmit={e => handleSubmit(e)}>
+            {error ? <Alert variant="danger">{error}</Alert> : null}
+            {success ? <Alert variant="success">Points sent!</Alert> : null}
+            <fieldset disabled={disabled}>
+                <Form.Group>
+                    <Form.Label>Amount</Form.Label>
+                    <Form.Control type="number" value={amount} onChange={e => setAmount(e.target.value)}></Form.Control>
+                </Form.Group>
+                <Form.Group>
+                    <Form.Label>Send to</Form.Label>
+                    <Form.Control as="select" value={toId} onChange={e => setToId(e.target.value)}>
+                        <option key='' value=''></option>
+                        {peers.map(peer => <option key={peer.id} value={peer.id}>{peer.displayName}</option>)}
+                    </Form.Control>
+                </Form.Group>
+                <Form.Group>
+                    <Form.Label>Note</Form.Label>
+                    <Form.Control type="textarea" value={description} onChange={e => setDescription(e.target.value)}></Form.Control>
+                </Form.Group>
+                <Button variant="primary" type="submit" disabled={!isValid}>Send</Button>
+            </fieldset>
+        </Form>
+    );
 
     return (
         <form className="ui form" onSubmit={e => handleSubmit(e)}>

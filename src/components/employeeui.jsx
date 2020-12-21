@@ -1,5 +1,7 @@
 import React from "react";
 
+import { Container, Navbar, Button, Row, Col } from "react-bootstrap";
+
 import Transactions from "./transactions";
 import Points from "./points";
 import TransactionForm from "./transactionform";
@@ -9,6 +11,28 @@ import { CartIcon, CartModal } from "./cart";
 
 import { signOut } from "../controllers/auth";
 
+function Navigation(props) {
+    const handleSignOut = e => {
+        e.preventDefault();
+        signOut();
+    }
+
+    return (
+        <Navbar bg="light" variant="light">
+            <Navbar.Brand>Point Share</Navbar.Brand>
+            <Navbar.Toggle />
+            <Navbar.Collapse className="justify-content-end">
+                <Navbar.Text>
+                    {props.user.email}
+                </Navbar.Text>
+                <Navbar.Text>
+                    <Button variant="link" onClick={e => handleSignOut(e)}>Sign Out</Button>
+                </Navbar.Text> 
+            </Navbar.Collapse>
+        </Navbar>
+    );
+}
+
 export default function EmployeeUI(props) {
     const auth = props.auth;
 
@@ -16,6 +40,32 @@ export default function EmployeeUI(props) {
         e.preventDefault();
         signOut();
     };
+
+    return (
+        <Container >
+            <CartModal />
+            <Row>
+                <Col>
+                    <Navigation user={auth.user} />
+                </Col>
+            </Row>
+            <Row>
+                <Col>
+                    <h3>Activity</h3>
+                    <Transactions user={auth.user} />
+                </Col>
+                <Col>
+                    <h3>Send Points</h3>
+                    <div>
+                        <Points />
+                    </div>
+                    <div>
+                        <TransactionForm />
+                    </div> 
+                </Col>
+            </Row>
+        </Container>
+    );
 
     return (
         <div className="app ui main container">
@@ -60,3 +110,4 @@ export default function EmployeeUI(props) {
         </div>
     );
 }
+
