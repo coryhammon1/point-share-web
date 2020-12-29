@@ -1,18 +1,12 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 
-import { combineLatest } from "rxjs";
-import { map } from "rxjs/operators";
+import { Card, CardDeck, Button, Spinner } from "react-bootstrap";
 
-import { productsState, useProducts } from "../stores/products";
-import { currentPointsState, useCurrentPoints } from "../stores/points";
-import { currentUser, useCurrentUser } from "../stores/auth";
+import { useProducts } from "../stores/products";
+import { useCurrentPoints } from "../stores/points";
+import { useCurrentUser } from "../stores/auth";
 
 import { addToCart } from "../controllers/cart";
-
-const componentState = combineLatest(productsState, currentPointsState, currentUser).pipe(map(([products, points, user]) => {
-    let rewarded = points?.rewarded;
-    return { products, rewarded, user };
-}));
 
 export default function Products(props) {
     const products = useProducts();
@@ -24,64 +18,46 @@ export default function Products(props) {
     }
 
     return (
-        <div className="ui cards">
+        <CardDeck>
         {products.map(product => <Product key={product.id} user={currentUser} product={product} rewarded={currentPoints?.rewarded} />)}
-        </div>
+        </CardDeck>
     );
 }
 
-class Product extends React.Component {
-    constructor(props) {
-        super(props);
+function Product(props) {
+    const product = props.product;
+    const user = props.user;
 
-        this.state = {
-            disabled: false,
-            error: null
-        };
+    const [disabled, setDisabled] = useState(false);
 
-        this.handleAddToCart = this.handleAddToCart.bind(this);
-    }
+    const handleAddToCart = e => {
+        e.preventDefault();
 
-    handleAddToCart(e) {
-        this.setState({ disabled: true });
+        setDisabled(true);
 
-        addToCart(this.props.user.uid, this.props.product.id)
-            .then(result => {
-                this.setState({ disabled: false });
-            })
+        addToCart(user.uid, product.id)
             .catch(err => {
                 console.error(err);
-                // this.setState({ error: err, disabled: false });
-                this.setState({ disabled: false });
+            })
+            .finally(() => {
+                setDisabled(false);
             });
-    }
+    };
 
-    render() {
-        const product = this.props.product;
-        const disabled = this.state.disabled ? "disabled" : null;
+    const sufficient = (props.rewarded || 0) >= product.cost;
 
-        const sufficient = ((this.props.rewarded || 0) - product.cost) >= 0;
-
-        return (
-            <div className="ui card">
-                <div className="content">
-                    <div className="header">
-                    {product.displayName}
-                    <span className="right floated">
-                        {product.cost} pts.
-                    </span>
-                    </div>
-                </div>
-                {this.state.error ? <div className="content">Failed to redeem: {this.state.error}</div> : null}
-                <div className="content">
-                    {product.description}
-                </div>
-                <div className="content">
-                    <button className="middle floated ui basic button" onClick={this.handleAddToCart} disabled={disabled || !sufficient}>
-                        Add To Cart
-                    </button>
-                </div>
-            </div>
-        );
-    }
+    return (
+        <Card style={{ width: "18rem" }}>
+            <Card.Body>
+                <Card.Title>{product.displayName}</Card.Title>
+                <Card.Text>{product.description}</Card.Text>
+            </Card.Body>
+            <Card.Footer>
+                <Button variant="primary" onClick={handleAddToCart} disabled={disabled || !sufficient}>
+                    {disabled ? <Spinner as="span" animation="border" size="sm" role="status" aria-hidden="true" /> : null}
+                    {!disabled ? <span>{product.cost} pts</span> : null}                    
+                </Button>
+            </Card.Footer>
+        </Card>
+    );
 }

@@ -1,8 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 
 import { useCurrentPoints } from "../stores/points";
-
-let i = 0;
 
 export default function RewardedPoints(props) {
     const points = useCurrentPoints();

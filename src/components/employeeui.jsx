@@ -64,6 +64,17 @@ export default function EmployeeUI(props) {
                     </div> 
                 </Col>
             </Row>
+            <Row>
+                <Col>
+                    <h3>Products</h3>
+                    <div>
+                        <RewardedPoints />
+                    </div>
+                    <div>
+                        <Products />
+                    </div>
+                </Col>
+            </Row>
         </Container>
     );
 
