@@ -22,9 +22,12 @@
   },
   "dependencies": {
     "bootstrap": "^4.5.3",
+    "bootstrap-icons": "^1.2.2",
+    "bootstrap-icons-react": "^1.0.0",
     "firebase": "^8.2.1",
     "react": "^17.0.1",
     "react-bootstrap": "^1.4.0",
+    "react-bootstrap-icons": "^1.2.2",
     "react-dom": "^17.0.1",
     "rxjs": "^6.6.3"
   }

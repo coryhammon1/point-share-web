@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-import { Observable, of } from "rxjs";
+import { Observable, of, BehaviorSubject } from "rxjs";
 import { switchMap } from "rxjs/operators";
 
 import { db } from "../firebase";
@@ -39,4 +39,23 @@ export function useCurrentCart() {
     }, []);
 
     return cart;
+}
+
+//cart modal display
+
+export const showCart = new BehaviorSubject(true);
+
+export function useShowCart() {
+    const [show, setShow] = useState(false);
+
+    useEffect(() => {
+        const sub = showCart.subscribe(s => {
+            setShow(s);
+        });
+        return () => {
+            sub.unsubscribe();
+        };
+    }, []);
+
+    return show;
 }

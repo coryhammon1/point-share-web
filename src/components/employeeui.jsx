@@ -26,7 +26,10 @@ function Navigation(props) {
                     {props.user.email}
                 </Navbar.Text>
                 <Navbar.Text>
-                    <Button variant="link" onClick={e => handleSignOut(e)}>Sign Out</Button>
+                    <CartIcon />
+                </Navbar.Text>
+                <Navbar.Text>
+                    <Button variant="secondary" onClick={e => handleSignOut(e)}>Sign Out</Button>
                 </Navbar.Text> 
             </Navbar.Collapse>
         </Navbar>
