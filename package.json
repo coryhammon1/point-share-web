@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "snowpack dev",
+    "build": "snowpack build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -18,6 +19,7 @@
   },
   "homepage": "https://github.com/coryhammon1/point-share-web#readme",
   "devDependencies": {
+    "@snowpack/plugin-webpack": "^2.2.0",
     "snowpack": "^2.18.5"
   },
   "dependencies": {
