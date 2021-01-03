@@ -1,9 +1,10 @@
 import React from "react";
 
-import { Table } from "react-bootstrap";
+import { Table, Card, CardDeck, CardGroup, CardColumns } from "react-bootstrap";
 
 import { useOrders } from "../stores/orders";
 import { useProfiles } from "../stores/profile";
+import { useProducts } from "../stores/products";
 
 const tfOptions = {
     month: "short",
@@ -23,13 +24,24 @@ function compareOrders(o1, o2) {
     }
 }
 
+function compareItems(i1, i2) {
+    return i1.product.displayName.localeCompare(i2.product.displayName);
+}
+
 export default function Orders(props) {
     const profiles = useProfiles();
+    const products = useProducts();
 
     const profilesIndex = new Map();
 
     for (let profile of (profiles || [])) {
         profilesIndex.set(profile.id, profile);
+    }
+
+    const productsIndex = new Map();
+
+    for (let product of (products || [])) {
+        productsIndex.set(product.id, product);
     }
 
     let orders = useOrders();
@@ -41,29 +53,74 @@ export default function Orders(props) {
     orders = orders.map(order => {
         const profile = profilesIndex.get(order.userId);
 
-        return { ...order, profile };
+        const items = Object.entries(order.items).map(([productId, item]) => {
+            const product = productsIndex.get(productId);
+            return { id: productId, product, ...item };
+        }).sort(compareItems);
+
+        return { ...order, items, profile };
     }).sort(compareOrders);
 
     return (
-        <Table>
-            <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>User</th>
-                </tr>
-            </thead>
-            <tbody>
-            {orders.map(order => <OrderRow key={order.id} order={order} />)}
-            </tbody>
-        </Table>
+        <div>
+        {orders.map(order => <OrderRow key={order.id} order={order} />)}
+        </div>
     );
 }
 
 function OrderRow({ order }) {
+    const shipping = order?.profile?.shipping;
+
+    return (
+        <div>
+            <Card>
+                <Card.Header>
+                    {formatter.format(order?.timestamp?.toDate())}
+                </Card.Header>
+                <Card.Body>
+                    <Card.Title>
+                        {order?.profile?.displayName || "Loading..."}
+                    </Card.Title>
+                    <Card.Text>
+                        {shipping ? 
+                            <span>
+                                <span>{shipping.street}</span>
+                                <br />
+                                <span>{shipping.city}, {shipping.state} {shipping.zip}</span>
+                            </span>
+                            : <span>Unknown shipping address</span>}
+                    </Card.Text>
+                    <Table>
+                        <thead>
+                            <tr>
+                                <th>Product Id</th>
+                                <th>Item</th>
+                                <th>Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {order.items.map(item => <OrderItem key={item.id} item={item} />)}
+                        </tbody>
+                    </Table>
+                </Card.Body>
+            </Card>
+            <br />
+        </div>
+    );
+}
+
+function OrderItem({ item }) {
     return (
         <tr>
-            <td>{formatter.format(order?.timestamp?.toDate())}</td>
-            <td>{order?.profile?.displayName || "Loading..."}</td>
+            <td>
+                {item.product.id}
+            </td>
+            <td>
+                {item.product.displayName}
+            </td>
+            <td>
+                {item.quantity}
+            </td>
         </tr>
     );
 }
