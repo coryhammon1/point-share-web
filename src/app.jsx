@@ -1,13 +1,12 @@
 import React from "react";
 import ReactDOM from "react-dom";
 
-import { Observable } from "rxjs";
-
 import { authState } from "./stores/auth";
 import { currentProfileState } from "./stores/profile";
 
 import { Login } from "./components/login";
 import EmployeeUI from "./components/employeeui";
+import FulfillerUI from "./components/fulfillerui";
 
 class App extends React.Component {
     constructor(props) {
@@ -51,7 +50,7 @@ class App extends React.Component {
         }
 
         if (profile.type === "FULFILLER") {
-            return <div>Fulfiller</div>;
+            return <FulfillerUI auth={auth} />;
         } else {
             return <EmployeeUI auth={auth} />;
         }

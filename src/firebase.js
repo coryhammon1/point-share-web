@@ -23,3 +23,5 @@ export const db = app.firestore();
 export const auth = app.auth();
 
 export const FieldValue = firebase.firestore.FieldValue;
+
+export const Timestamp = firebase.firestore.Timestamp;

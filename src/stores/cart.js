@@ -43,7 +43,7 @@ export function useCurrentCart() {
 
 //cart modal display
 
-export const showCart = new BehaviorSubject(true);
+export const showCart = new BehaviorSubject(false);
 
 export function useShowCart() {
     const [show, setShow] = useState(false);
