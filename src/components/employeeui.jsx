@@ -8,10 +8,15 @@ import TransactionForm from "./transactionform";
 import RewardedPoints from "./rewardedpoints";
 import Products from "./products";
 import { CartIcon, CartModal } from "./cart";
+import UserTypeSwitch from "./usertypeswitch";
+
+import { useCurrentProfile } from "../stores/profile";
 
 import { signOut } from "../controllers/auth";
 
-function Navigation(props) {
+function Navigation({ user }) {
+    const currentProfile = useCurrentProfile();
+
     const handleSignOut = e => {
         e.preventDefault();
         signOut();
@@ -23,8 +28,9 @@ function Navigation(props) {
             <Navbar.Toggle />
             <Navbar.Collapse className="justify-content-end">
                 <Navbar.Text>
-                    {props.user.email}
+                    {user.email}
                 </Navbar.Text>
+                {currentProfile?.admin ? <UserTypeSwitch profile={currentProfile} /> : null}
                 <Navbar.Text>
                     <CartIcon />
                 </Navbar.Text>

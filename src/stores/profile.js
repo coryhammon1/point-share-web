@@ -15,7 +15,7 @@ function profileState(uid) {
                 return;
             }
 
-            o.next(doc.data());
+            o.next({ id: doc.id, ...doc.data() });
         });
     });
 }
@@ -42,6 +42,21 @@ export const currentProfileState = authState.pipe(switchMap(auth => {
 
     return profileState(uid);
 }));
+
+export function useCurrentProfile() {
+    const [currentProfile, setCurrentProfile] = useState(null);
+
+    useEffect(() => {
+        let sub = currentProfileState.subscribe(profile => {
+            setCurrentProfile(profile);
+        });
+        return () => {
+            sub.unsubscribe();
+        };
+    }, []);
+
+    return currentProfile;
+}
 
 export const profilesState = authState.pipe(switchMap(auth => {
     if (!auth.user) {

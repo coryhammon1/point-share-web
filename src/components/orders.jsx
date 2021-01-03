@@ -44,8 +44,6 @@ export default function Orders(props) {
         return { ...order, profile };
     }).sort(compareOrders);
 
-    console.log(orders);
-
     return (
         <Table>
             <thead>
