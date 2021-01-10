@@ -1,24 +1,38 @@
 # point-share-web
 Client application for point share.
 
+## Priorities
+1. Company Admin. Get to a place where K can set up his own company with employees and products.
+
+## Company On-boarding
+- Create an organization
+- Add employees
+- Add products
+- Other misc. items
+
+
+
 ## To Do
 - Add better cart management
-    - Adjust quantity of each item
+    - --Adjust quantity of each item--
     - Cart reset
     - Better looking total
-    - Notify when there aren't enough points
+    - --Notify when there aren't enough points--
 - Order processing
     - Show order status
     - Be able to cancel order (if in the right status)
 - Fulfillment Account Role
-    - View orders
+    - --View orders--
+    - Better management of orders
+        - Place in different statuses
+        - Cancel and update
 
 - Profile page
     - name
     - shipping
     - sizes
 
-- Company Admin
+- Organization Admin
     - managers can gift certain points
     - set points parameters
     - be able to adjust who gets how many points

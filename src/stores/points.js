@@ -14,7 +14,7 @@ function pointsState(uid) {
             return null;
         }
 
-        return doc.data();
+        return { id: doc.id, ...doc.data() };
     });
 }
 
@@ -33,6 +33,21 @@ export function useCurrentPoints() {
 
     useEffect(() => {
         let sub = currentPointsState.subscribe(points => {
+            setPoints(points);
+        });
+        return () => {
+            sub.unsubscribe();
+        };
+    }, []);
+
+    return points;
+}
+
+export function usePoints(uid) {
+    const [points, setPoints] = useState(null);
+
+    useEffect(() => {
+        let sub = pointsState(uid).subscribe(points => {
             setPoints(points);
         });
         return () => {

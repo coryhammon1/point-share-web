@@ -7,6 +7,7 @@ import { currentProfileState } from "./stores/profile";
 import { Login } from "./components/login";
 import EmployeeUI from "./components/employeeui";
 import FulfillerUI from "./components/fulfillerui";
+import OrgAdminUI from "./components/orgadminui";
 
 class App extends React.Component {
     constructor(props) {
@@ -51,6 +52,8 @@ class App extends React.Component {
 
         if (profile.type === "FULFILLER") {
             return <FulfillerUI auth={auth} />;
+        } else if (profile.type === "ORG_ADMIN") {
+            return <OrgAdminUI auth={auth} />;
         } else {
             return <EmployeeUI auth={auth} />;
         }

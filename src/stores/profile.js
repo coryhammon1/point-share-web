@@ -33,6 +33,20 @@ function profiles(uid) {
     });
 }
 
+function organizationProfiles(orgId) {
+    return Observable.create(o => {
+        return db.collection("users").where("orgId", "==", orgId).onSnapshot(snapshot => {
+            let profiles = [];
+
+            snapshot.forEach(doc => {
+                profiles.push({ id: doc.id, ...doc.data() });
+            });
+
+            o.next(profiles);
+        });
+    });
+}
+
 export const currentProfileState = authState.pipe(switchMap(auth => {
     if (!auth.user) {
         return of(null);
@@ -71,6 +85,21 @@ export function useProfiles() {
 
     useEffect(() => {
         let sub = profilesState.subscribe(profiles => {
+            setProfiles(profiles);
+        });
+        return () => {
+            sub.unsubscribe();
+        };
+    }, []);
+
+    return profiles;
+}
+
+export function useOrganizationProfiles(orgId) {
+    const [profiles, setProfiles] = useState(null);
+
+    useEffect(() => {
+        let sub = organizationProfiles(orgId).subscribe(profiles => {
             setProfiles(profiles);
         });
         return () => {
