@@ -14,7 +14,10 @@ export default function({ organization }) {
 
     const newEmployee = {
         orgId: organization.id,
-        firstName: ""
+        firstName: "",
+        lastName: "",
+        email: "",
+        type: "EMPLOYEE"
     };
 
     const [showEmployeeForm, setShowEmployeeForm] = useState(false);
@@ -37,6 +40,10 @@ export default function({ organization }) {
         setShowEmployeeForm(false);
     }
 
+    const handleFormComplete = () => {
+        setShowEmployeeForm(false);
+    }
+
     return (
         <div>
             <Modal show={showEmployeeForm} onHide={handleEmployeeFormClose}>
@@ -44,9 +51,8 @@ export default function({ organization }) {
                     <Modal.Title>Employee</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
-                    <EmployeeForm profile={editingEmployee} />
+                    <EmployeeForm profile={editingEmployee} isEditing={editingEmployee === newEmployee} onComplete={handleFormComplete} />
                 </Modal.Body>
-                <Modal.Footer>Footer</Modal.Footer>
             </Modal>
             <Button onClick={e => handleAddEmployee(e)}>Add Employee</Button>
             <Table>
