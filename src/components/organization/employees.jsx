@@ -61,6 +61,7 @@ export default function({ organization }) {
                         <th>First Name</th>
                         <th>Last Name</th>
                         <th>Email</th>
+                        <th>Verified</th>
                         <th>Administrator</th>
                         <th>Sendable Points</th>
                         <th>Rewarded Points</th>
@@ -85,6 +86,7 @@ function EmployeeRow({ profile }) {
             <td>{profile.firstName}</td>
             <td>{profile.lastName}</td>
             <td>{profile.email}</td>
+            <td>{profile.verified ? "Yes" : "No"}</td>
             <td>{isOrgAdmin ? "Yes" : "No"}</td>
             <td>{points?.points || 0}</td>
             <td>{points?.rewarded || 0}</td>
