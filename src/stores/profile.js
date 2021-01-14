@@ -7,7 +7,11 @@ import { switchMap } from "rxjs/operators";
 
 import { authState } from "./auth";
 
-function profileState(uid) {
+export function profileState(uid) {
+    if (!uid) {
+        return of(null);
+    }
+
     return Observable.create(o => {
         return db.collection("users").doc(uid).onSnapshot(doc => {
             if (!doc) {

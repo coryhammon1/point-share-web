@@ -27,6 +27,10 @@ export function authenticate(email, password) {
     return auth.signInWithEmailAndPassword(email, password);
 }
 
+export function anonymous() {
+    return auth.signInAnonymously();
+}
+
 export function useCurrentUser() {
     const [user, setCurrentUser] = useState(null);
 

@@ -25,3 +25,5 @@ export const auth = app.auth();
 export const FieldValue = firebase.firestore.FieldValue;
 
 export const Timestamp = firebase.firestore.Timestamp;
+
+export const EmailAuthProvider = firebase.auth.EmailAuthProvider;
