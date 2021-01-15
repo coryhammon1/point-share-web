@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import ReactDOM from "react-dom";
 
-import { Button, Form, Alert, Spinner } from "react-bootstrap";
+import { Container, Button, Form, Alert, Spinner } from "react-bootstrap";
 
 import { signUpState } from "./stores/signups";
 import { useCurrentUser } from "./stores/auth";
@@ -16,15 +16,24 @@ function getTokenParam() {
     return params["token"][0];
 }
 
+function redirectToHome() {
+    window.location.href = "/";
+}
+
+function App(props) {
+    return (
+        <Container>
+            <SignUp />
+        </Container>
+    );
+}
+
 function SignUp(props) {
     const currentUser = useCurrentUser();
 
     useEffect(() => {
-        if (!currentUser) {
+        if (currentUser === null) {
             signInAnonymously()
-                .then(user => {
-                    console.log("signed in");
-                })
                 .catch(err => {
                     console.error(err);
                 });
@@ -33,6 +42,27 @@ function SignUp(props) {
 
     const signUp = useSubscription(signUpState(getTokenParam()));
 
+    if (!currentUser) {
+        return <p>Loading...</p>;
+    }
+
+    const handleReturn = e => {
+        e.preventDefault();
+        redirectToHome();
+    };
+
+    if (!currentUser.isAnonymous) {
+        return (
+            <div>
+                <h1>Account Already Active</h1>
+                <p>You already have an active account.</p>
+                <Button onClick={handleReturn}>
+                    Return to app
+                </Button>
+            </div>
+        );
+    }
+
     if (!signUp) {
         return <p>Loading...</p>;
     }
@@ -40,7 +70,12 @@ function SignUp(props) {
     const profileId = signUp?.profileId;
 
     if (!profileId) {
-        return <p>Invalid token.</p>;
+        return (
+            <div>
+                <h1>Invalid token</h1>
+                <p>Reach out to your organization's administrator to send a new invitation.</p>
+            </div>
+        );
     }
 
     return (
@@ -54,6 +89,7 @@ function SignUp(props) {
 }
 
 //TODO: add better validation to passwords
+//TODO: add preferred sizing, address, etc.
 function SignUpForm({ signUp, currentUser }) {
     const [password, setPassword] = useState("");
     const [confirm, setConfirm] = useState("");
@@ -84,7 +120,7 @@ function SignUpForm({ signUp, currentUser }) {
 
         create(signUp.email, password, signUp.profileId, currentUser.uid, signUp.id)
             .then(user => {
-                window.location.href = "/";
+                redirectToHome();
             })
             .catch(err => {
                 console.error(err);
@@ -139,5 +175,5 @@ function SignUpForm({ signUp, currentUser }) {
 
 (function() {
     const domContainer = document.querySelector("#app");
-    ReactDOM.render(<SignUp />, domContainer);
+    ReactDOM.render(<App />, domContainer);
 })();

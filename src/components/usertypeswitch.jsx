@@ -20,6 +20,7 @@ export default function({ profile }) {
         <NavDropdown title={userType}>
             <NavDropdown.Item onClick={e => handleUpdateType(e, "EMPLOYEE")}>Employee</NavDropdown.Item>
             <NavDropdown.Item onClick={e => handleUpdateType(e, "FULFILLER")}>Fulfiller</NavDropdown.Item>
+            <NavDropdown.Item onClick={e => handleUpdateType(e, "ORG_ADMIN")}>Org Admin</NavDropdown.Item>
         </NavDropdown>
     )
 }

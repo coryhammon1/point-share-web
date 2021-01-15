@@ -44,6 +44,10 @@ class App extends React.Component {
             return <Login />;
         }
 
+        if (auth.user.isAnonymous) {
+            return <Login />;
+        }
+
         const profile = this.state.profile;
 
         if (!profile) {

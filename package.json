@@ -20,7 +20,7 @@
   "homepage": "https://github.com/coryhammon1/point-share-web#readme",
   "devDependencies": {
     "@snowpack/plugin-webpack": "^2.2.0",
-    "snowpack": "^2.18.5"
+    "snowpack": "^3.0.0"
   },
   "dependencies": {
     "bootstrap": "^4.5.3",

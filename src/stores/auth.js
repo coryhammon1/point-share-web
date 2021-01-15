@@ -16,7 +16,11 @@ auth.onAuthStateChanged(user => {
 export const authState = authSubject.asObservable();
 
 export const currentUser = authState.pipe(map(auth => {
-    return auth?.user;
+    if (!auth.initialized) {
+        return undefined;
+    }
+
+    return auth.user;
 }));
 
 export function switchAuthState(f) {
@@ -32,7 +36,7 @@ export function anonymous() {
 }
 
 export function useCurrentUser() {
-    const [user, setCurrentUser] = useState(null);
+    const [user, setCurrentUser] = useState(undefined);
 
     useEffect(() => {
         let sub = currentUser.subscribe(user => {
